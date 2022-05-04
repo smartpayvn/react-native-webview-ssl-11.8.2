@@ -21,3 +21,4 @@ class TopSSLErrorEvent(viewId: Int, private val mEventData: WritableMap) :
 
   override fun dispatch(rctEventEmitter: RCTEventEmitter) =
     rctEventEmitter.receiveEvent(viewTag, eventName, mEventData)
+  }
