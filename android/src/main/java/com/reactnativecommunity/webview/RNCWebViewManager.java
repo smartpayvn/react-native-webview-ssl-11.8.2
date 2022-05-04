@@ -85,6 +85,7 @@ import com.reactnativecommunity.webview.events.TopLoadingStartEvent;
 import com.reactnativecommunity.webview.events.TopMessageEvent;
 import com.reactnativecommunity.webview.events.TopShouldStartLoadWithRequestEvent;
 import com.reactnativecommunity.webview.events.TopRenderProcessGoneEvent;
+import com.reactnativecommunity.webview.events.TopSSLErrorEvent;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -159,6 +160,8 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
   protected boolean mAllowsFullscreenVideo = false;
   protected @Nullable String mUserAgent = null;
   protected @Nullable String mUserAgentWithApplicationName = null;
+  protected @Nullable boolean isCheckPassSSL;
+  protected @Nullable ReadableArray whiteListSSL = null;
 
   public RNCWebViewManager() {
     mWebViewConfig = new WebViewConfig() {
@@ -631,6 +634,26 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
     ((RNCWebView) view).setHasScrollEvent(hasScrollEvent);
   }
 
+  @ReactProp(name = "isCheckPassSSL")
+  public void setIsCheckPassSSL(WebView view, boolean isCheckPassSSL) {
+    Log.e("SmartPay", "RNCWebViewManager::setIsCheckPassSSL " + isCheckPassSSL);
+    this.isCheckPassSSL = isCheckPassSSL;
+    RNCWebViewClient rncWebViewClient = ((RNCWebView) view).getRNCWebViewClient();
+    if (rncWebViewClient != null) {
+      rncWebViewClient.isCheckPassSSL = isCheckPassSSL;
+    }
+  }
+
+  @ReactProp(name = "whiteListSSL")
+  public void setWhiteListSSL(WebView view, ReadableArray whiteListSSL) {
+    Log.e("SmartPay", "RNCWebViewManager::setWhiteListSSL " + whiteListSSL);
+    this.whiteListSSL = whiteListSSL;
+    RNCWebViewClient rncWebViewClient = ((RNCWebView) view).getRNCWebViewClient();
+    if (rncWebViewClient != null) {
+      rncWebViewClient.whiteListSSL = whiteListSSL;
+    }
+  }
+
   @ReactProp(name = "forceDarkOn")
   public void setForceDarkOn(WebView view, boolean enabled) {
     // Only Android 10+ support dark mode
@@ -660,7 +683,7 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
   @Override
   protected void addEventEmitters(ThemedReactContext reactContext, WebView view) {
     // Do not register default touch emitter and let WebView implementation handle touches
-    view.setWebViewClient(new RNCWebViewClient());
+    view.setWebViewClient(new RNCWebViewClient(isCheckPassSSL, whiteListSSL));
   }
 
   @Override
@@ -673,6 +696,7 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
     export.put(TopShouldStartLoadWithRequestEvent.EVENT_NAME, MapBuilder.of("registrationName", "onShouldStartLoadWithRequest"));
     export.put(ScrollEventType.getJSEventName(ScrollEventType.SCROLL), MapBuilder.of("registrationName", "onScroll"));
     export.put(TopHttpErrorEvent.EVENT_NAME, MapBuilder.of("registrationName", "onHttpError"));
+    export.put(TopSSLErrorEvent.EVENT_NAME, MapBuilder.of("registrationName", "onSSLError"));
     export.put(TopRenderProcessGoneEvent.EVENT_NAME, MapBuilder.of("registrationName", "onRenderProcessGone"));
     return export;
   }
@@ -880,6 +904,13 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
     protected RNCWebView.ProgressChangedFilter progressChangedFilter = null;
     protected @Nullable String ignoreErrFailedForThisURL = null;
     protected @Nullable BasicAuthCredential basicAuthCredential = null;
+    boolean isCheckPassSSL;
+    ReadableArray whiteListSSL;
+
+    public RNCWebViewClient(boolean isCheckPassSSL, ReadableArray whiteListSSL){
+      this.isCheckPassSSL = isCheckPassSSL;
+      this.whiteListSSL = whiteListSSL;
+    }
 
     public void setIgnoreErrFailedForThisURL(@Nullable String url) {
       ignoreErrFailedForThisURL = url;
@@ -984,61 +1015,83 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
 
     @Override
     public void onReceivedSslError(final WebView webView, final SslErrorHandler handler, final SslError error) {
-        // onReceivedSslError is called for most requests, per Android docs: https://developer.android.com/reference/android/webkit/WebViewClient#onReceivedSslError(android.webkit.WebView,%2520android.webkit.SslErrorHandler,%2520android.net.http.SslError)
-        // WebView.getUrl() will return the top-level window URL.
-        // If a top-level navigation triggers this error handler, the top-level URL will be the failing URL (not the URL of the currently-rendered page).
-        // This is desired behavior. We later use these values to determine whether the request is a top-level navigation or a subresource request.
-        String topWindowUrl = webView.getUrl();
-        String failingUrl = error.getUrl();
+      Log.e("SmartPay", "RNWebViwManager::onReceivedSslError isCheckPassSSL: " + isCheckPassSSL + ", whiteListSSL: " + whiteListSSL + ", errorUrl: " + error.getUrl());
+      try {
+        if (isCheckPassSSL){
+          URL url = new URL(error.getUrl());
+          String domain = url.getHost();
+          Log.e("SmartPay", "RNWebViwManager::onReceivedSslError domain: " + domain);
+          if(isContainSSL(domain)) {
+            handler.proceed();
+          }else {
+            WritableMap eventData = createWebViewEvent(webView, error.getUrl());
+            eventData.putString("domain", domain);
+            dispatchEvent(
+              webView,
+              new TopSSLErrorEvent(webView.getId(), eventData));
+            handler.cancel();
+          }
+        }else {
+          // onReceivedSslError is called for most requests, per Android docs: https://developer.android.com/reference/android/webkit/WebViewClient#onReceivedSslError(android.webkit.WebView,%2520android.webkit.SslErrorHandler,%2520android.net.http.SslError)
+          // WebView.getUrl() will return the top-level window URL.
+          // If a top-level navigation triggers this error handler, the top-level URL will be the failing URL (not the URL of the currently-rendered page).
+          // This is desired behavior. We later use these values to determine whether the request is a top-level navigation or a subresource request.
+          String topWindowUrl = webView.getUrl();
+          String failingUrl = error.getUrl();
 
-        // Cancel request after obtaining top-level URL.
-        // If request is cancelled before obtaining top-level URL, undesired behavior may occur.
-        // Undesired behavior: Return value of WebView.getUrl() may be the current URL instead of the failing URL.
+          // Cancel request after obtaining top-level URL.
+          // If request is cancelled before obtaining top-level URL, undesired behavior may occur.
+          // Undesired behavior: Return value of WebView.getUrl() may be the current URL instead of the failing URL.
+          handler.cancel();
+
+          if (!topWindowUrl.equalsIgnoreCase(failingUrl)) {
+            // If error is not due to top-level navigation, then do not call onReceivedError()
+            Log.w(TAG, "Resource blocked from loading due to SSL error. Blocked URL: "+failingUrl);
+            return;
+          }
+
+          int code = error.getPrimaryError();
+          String description = "";
+          String descriptionPrefix = "SSL error: ";
+
+          // https://developer.android.com/reference/android/net/http/SslError.html
+          switch (code) {
+            case SslError.SSL_DATE_INVALID:
+              description = "The date of the certificate is invalid";
+              break;
+            case SslError.SSL_EXPIRED:
+              description = "The certificate has expired";
+              break;
+            case SslError.SSL_IDMISMATCH:
+              description = "Hostname mismatch";
+              break;
+            case SslError.SSL_INVALID:
+              description = "A generic error occurred";
+              break;
+            case SslError.SSL_NOTYETVALID:
+              description = "The certificate is not yet valid";
+              break;
+            case SslError.SSL_UNTRUSTED:
+              description = "The certificate authority is not trusted";
+              break;
+            default:
+              description = "Unknown SSL Error";
+              break;
+          }
+
+          description = descriptionPrefix + description;
+
+          this.onReceivedError(
+            webView,
+            code,
+            description,
+            failingUrl
+          );
+        }
+      } catch (Exception e) {
+        Log.e("SmartPay", "RNWebViwManager::onReceivedSslError Exception: " + error.getUrl());
         handler.cancel();
-
-        if (!topWindowUrl.equalsIgnoreCase(failingUrl)) {
-          // If error is not due to top-level navigation, then do not call onReceivedError()
-          Log.w(TAG, "Resource blocked from loading due to SSL error. Blocked URL: "+failingUrl);
-          return;
-        }
-
-        int code = error.getPrimaryError();
-        String description = "";
-        String descriptionPrefix = "SSL error: ";
-
-        // https://developer.android.com/reference/android/net/http/SslError.html
-        switch (code) {
-          case SslError.SSL_DATE_INVALID:
-            description = "The date of the certificate is invalid";
-            break;
-          case SslError.SSL_EXPIRED:
-            description = "The certificate has expired";
-            break;
-          case SslError.SSL_IDMISMATCH:
-            description = "Hostname mismatch";
-            break;
-          case SslError.SSL_INVALID:
-            description = "A generic error occurred";
-            break;
-          case SslError.SSL_NOTYETVALID:
-            description = "The certificate is not yet valid";
-            break;
-          case SslError.SSL_UNTRUSTED:
-            description = "The certificate authority is not trusted";
-            break;
-          default:
-            description = "Unknown SSL Error";
-            break;
-        }
-
-        description = descriptionPrefix + description;
-
-        this.onReceivedError(
-          webView,
-          code,
-          description,
-          failingUrl
-        );
+      }
     }
 
     @Override
@@ -1130,6 +1183,17 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
 
         // returning false would crash the app.
         return true;
+    }
+
+    private boolean isContainSSL(String url){
+      if(whiteListSSL != null){
+        for(Object whiteUrl : whiteListSSL.toArrayList()){
+          if(url.equalsIgnoreCase((String)whiteUrl)){
+            return true;
+          }
+        }
+      }
+      return false;
     }
 
     protected void emitFinishEvent(WebView webView, String url) {
