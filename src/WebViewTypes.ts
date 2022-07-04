@@ -1199,12 +1199,6 @@ export interface WebViewSharedProps extends ViewProps {
 
   /**
    * Set this to provide JavaScript that will be injected into the web page
-   * when the view loads on main thread.
-   */
-  injectedJavaScriptOnMainThread?: string;
-
-  /**
-   * Set this to provide JavaScript that will be injected into the web page
    * once the webview is initialized but before the view loads any content.
    */
   injectedJavaScriptBeforeContentLoaded?: string;
