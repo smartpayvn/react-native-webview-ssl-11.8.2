@@ -1298,7 +1298,7 @@ NSString *const CUSTOM_SELECTOR = @"_CUSTOM_SELECTOR_";
         RCTLogWarn(@"%@", [NSString stringWithFormat:@"Error evaluating injectedJavaScript: This is possibly due to an unsupported return type. Try adding true to the end of your injectedJavaScript string. %@", error]);
       }
     }];
-  })
+  });
 }
 
 -(void)forceIgnoreSilentHardwareSwitch:(BOOL)initialSetup
