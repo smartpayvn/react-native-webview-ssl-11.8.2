@@ -34,9 +34,21 @@ declare class WebView<P = {}> extends Component<WebViewProps & P> {
 
     /**
      * (iOS only)
-     * Executes the JavaScript string on main thread.
+     * Set the JavaScript string after content loaded.
      */
-    injectJavaScriptOnMainThread: (script: string) => void;
+    setInjectedJavaScript: (script: string) => void;
+
+    /**
+     * (iOS only)
+     * Set the JavaScript string before content loaded.
+     */
+    setInjectedJavaScriptBeforeContentLoaded: (script: string) => void;
+
+    /**
+     * (iOS only)
+     * Set the main frame only for the JavaScript loaded.
+     */
+    setInjectedJavaScriptForMainFrameOnly: (mainFrameOnly: boolean) => void;
 
     /**
      * Focuses on WebView redered page.
