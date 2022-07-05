@@ -162,6 +162,14 @@ class WebView extends React.Component<IOSWebViewProps, State> {
     );
   };
 
+  injectJavaScriptOnMainThread = (data: string) => {
+    UIManager.dispatchViewManagerCommand(
+      this.getWebViewHandle(),
+      this.getCommands().injectJavaScriptOnMainThread,
+      [data],
+    );
+  };
+
   setInjectedJavaScript = (data: string) => {
     UIManager.dispatchViewManagerCommand(
       this.getWebViewHandle(),
