@@ -14,7 +14,7 @@ import {
 
 type WebViewCommands = 'goForward' | 'goBack' | 'reload' | 'stopLoading' | 'postMessage' | 'injectJavaScript' | 'loadUrl' | 'requestFocus';
 
-type IOSWebViewCommands = 'injectJavaScriptOnMainThread | setInjectedJavaScript' | 'setInjectedJavaScriptBeforeContentLoaded' | 'setInjectedJavaScriptForMainFrameOnly';
+type IOSWebViewCommands = 'injectJavaScriptOnMainThread';
 
 type AndroidWebViewCommands = 'clearHistory' | 'clearCache' | 'clearFormData';
 

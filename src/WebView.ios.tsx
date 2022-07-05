@@ -170,30 +170,6 @@ class WebView extends React.Component<IOSWebViewProps, State> {
     );
   };
 
-  setInjectedJavaScript = (data: string) => {
-    UIManager.dispatchViewManagerCommand(
-      this.getWebViewHandle(),
-      this.getCommands().setInjectedJavaScript,
-      [data],
-    );
-  };
-
-  setInjectedJavaScriptBeforeContentLoaded = (data: string) => {
-    UIManager.dispatchViewManagerCommand(
-      this.getWebViewHandle(),
-      this.getCommands().setInjectedJavaScriptBeforeContentLoaded,
-      [data],
-    );
-  };
-
-  setInjectedJavaScriptForMainFrameOnly = (data: boolean) => {
-    UIManager.dispatchViewManagerCommand(
-      this.getWebViewHandle(),
-      this.getCommands().setInjectedJavaScriptForMainFrameOnly,
-      [data],
-    );
-  };
-
   /**
    * We return an event with a bunch of fields including:
    *  url, title, loading, canGoBack, canGoForward
