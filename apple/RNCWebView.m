@@ -1299,7 +1299,7 @@ NSString *const CUSTOM_SELECTOR = @"_CUSTOM_SELECTOR_";
       if (error != nil) {
         RCTLogWarn(@"%@", [NSString stringWithFormat:@"Error evaluating injectedJavaScript: This is possibly due to an unsupported return type. Try adding true to the end of your injectedJavaScript string. %@", error]);
         if (error.code == 4) {
-          print("retrying login...")
+          RCTLogWarn(@"retrying login...");
           if (_retryLoadScript < 10) {
             _retryLoadScript++;
             [self evaluateJSOnMainThread: js thenCall: callback];
