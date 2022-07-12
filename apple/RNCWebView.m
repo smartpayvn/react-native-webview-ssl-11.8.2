@@ -1291,6 +1291,8 @@ NSString *const CUSTOM_SELECTOR = @"_CUSTOM_SELECTOR_";
     return;
   }
 
+  __weak typeof(self) weakSelf = self;
+
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
     [self.webView evaluateJavaScript: js completionHandler: ^(id result, NSError *error) {
       if (callback != nil) {
@@ -1301,8 +1303,8 @@ NSString *const CUSTOM_SELECTOR = @"_CUSTOM_SELECTOR_";
         if (error.code == 4) {
           RCTLogWarn(@"retrying login...");
           if (_retryLoadScript < 10) {
-            _retryLoadScript++;
-            [self evaluateJSOnMainThread: js thenCall: callback];
+            weakSelf.retryLoadScript++;
+            [weakSelf evaluateJSOnMainThread: js thenCall: callback];
           }
         } 
       }
