@@ -13,6 +13,7 @@ class TopSSLErrorEvent(viewId: Int, private val mEventData: WritableMap) :
     const val EVENT_NAME = "topSSLError"
   }
 
+
   override fun getEventName(): String = EVENT_NAME
 
   override fun canCoalesce(): Boolean = false
@@ -21,3 +22,4 @@ class TopSSLErrorEvent(viewId: Int, private val mEventData: WritableMap) :
 
   override fun dispatch(rctEventEmitter: RCTEventEmitter) =
     rctEventEmitter.receiveEvent(viewTag, eventName, mEventData)
+  }
