@@ -162,14 +162,6 @@ class WebView extends React.Component<IOSWebViewProps, State> {
     );
   };
 
-  injectJavaScriptOnMainThread = (data: string) => {
-    UIManager.dispatchViewManagerCommand(
-      this.getWebViewHandle(),
-      this.getCommands().injectJavaScriptOnMainThread,
-      [data],
-    );
-  };
-
   /**
    * We return an event with a bunch of fields including:
    *  url, title, loading, canGoBack, canGoForward
