@@ -1025,8 +1025,8 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
             handler.proceed();
           }else {
             WritableMap eventData = createWebViewEvent(webView, error.getUrl());
-            eventData.putString("domain", domain);
-            dispatchEvent(
+            eventData.putString("domain", domain);            
+            ((RNCWebView) webView).dispatchEvent(
               webView,
               new TopSSLErrorEvent(webView.getId(), eventData));
             handler.cancel();
