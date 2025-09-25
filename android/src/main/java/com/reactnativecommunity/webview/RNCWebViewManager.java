@@ -161,6 +161,7 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
   protected @Nullable String mUserAgent = null;
   protected @Nullable String mUserAgentWithApplicationName = null;
   protected @Nullable boolean isCheckPassSSL;
+  protected @Nullable boolean bypassSSL = false;
   protected @Nullable ReadableArray whiteListSSL = null;
 
   public RNCWebViewManager() {
@@ -654,6 +655,16 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
     }
   }
 
+  @ReactProp(name = "bypassSSL")
+  public void setBypassSSL(WebView view, boolean bypassSSL) {
+    Log.e("SmartPay", "RNCWebViewManager::setBypassSSL " + bypassSSL);
+    this.bypassSSL = bypassSSL;
+    RNCWebViewClient rncWebViewClient = ((RNCWebView) view).getRNCWebViewClient();
+    if (rncWebViewClient != null) {
+      rncWebViewClient.bypassSSL = bypassSSL;
+    }
+  }
+
   @ReactProp(name = "forceDarkOn")
   public void setForceDarkOn(WebView view, boolean enabled) {
     // Only Android 10+ support dark mode
@@ -683,7 +694,7 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
   @Override
   protected void addEventEmitters(ThemedReactContext reactContext, WebView view) {
     // Do not register default touch emitter and let WebView implementation handle touches
-    view.setWebViewClient(new RNCWebViewClient(isCheckPassSSL, whiteListSSL));
+    view.setWebViewClient(new RNCWebViewClient(isCheckPassSSL, bypassSSL, whiteListSSL));
   }
 
   @Override
@@ -905,10 +916,12 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
     protected @Nullable String ignoreErrFailedForThisURL = null;
     protected @Nullable BasicAuthCredential basicAuthCredential = null;
     boolean isCheckPassSSL;
+    boolean bypassSSL;
     ReadableArray whiteListSSL;
 
-    public RNCWebViewClient(boolean isCheckPassSSL, ReadableArray whiteListSSL){
+    public RNCWebViewClient(boolean isCheckPassSSL, boolean bypassSSL, ReadableArray whiteListSSL){
       this.isCheckPassSSL = isCheckPassSSL;
+      this.bypassSSL = bypassSSL;
       this.whiteListSSL = whiteListSSL;
     }
 
@@ -1015,8 +1028,16 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
 
     @Override
     public void onReceivedSslError(final WebView webView, final SslErrorHandler handler, final SslError error) {
-      Log.e("SmartPay", "RNWebViwManager::onReceivedSslError isCheckPassSSL: " + isCheckPassSSL + ", whiteListSSL: " + whiteListSSL + ", errorUrl: " + error.getUrl());
+      Log.e("SmartPay", "RNWebViwManager::onReceivedSslError bypassSSL: " + bypassSSL + ", isCheckPassSSL: " + isCheckPassSSL + ", whiteListSSL: " + whiteListSSL + ", errorUrl: " + error.getUrl());
+
       try {
+        // If bypassSSL = true, allow all SSL connections
+        if (bypassSSL) {
+          handler.proceed();
+          return;
+        }
+
+        // Current SSL pinning logic...
         if (isCheckPassSSL){
           URL url = new URL(error.getUrl());
           String domain = url.getHost();
@@ -1025,7 +1046,7 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
             handler.proceed();
           }else {
             WritableMap eventData = createWebViewEvent(webView, error.getUrl());
-            eventData.putString("domain", domain);            
+            eventData.putString("domain", domain);
             ((RNCWebView) webView).dispatchEvent(
               webView,
               new TopSSLErrorEvent(webView.getId(), eventData));
